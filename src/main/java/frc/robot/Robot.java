@@ -1,6 +1,5 @@
 package frc.robot;
 
-import edu.wpi.first.util.sendable.SendableRegistry;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.drive.MecanumDrive;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
@@ -15,33 +14,35 @@ import edu.wpi.first.math.geometry.Rotation2d;
 
 public class Robot extends TimedRobot {
 
-  private MecanumDrive m_robotDrive;
+  // defines the variable
+  private MecanumDrive Mecanum_Drive;
 
+  // defines the port for the xbox controller
   public final CommandXboxController controller = new CommandXboxController(0);
 
+  // defines the really pins
   private final Relay fan = new Relay(0);
-  private final AHRS navX = new AHRS(SPI.Port.kMXP); // 200Hz update rate
 
+  // defines the navX location
+  private final AHRS navX = new AHRS(SPI.Port.kMXP);
+
+  // defines the can id for the motors
   CANSparkMax frontLeft = new CANSparkMax(2, MotorType.kBrushless);
   CANSparkMax rearLeft = new CANSparkMax(3, MotorType.kBrushless);
   CANSparkMax frontRight = new CANSparkMax(1, MotorType.kBrushless);
   CANSparkMax rearRight = new CANSparkMax(4, MotorType.kBrushless);
 
+  // list of motors
   private final CANSparkMax[] motors = {
-      frontLeft,
-      rearLeft,
-      frontRight,
-      rearRight,
+    frontLeft,
+    rearLeft,
+    frontRight,
+    rearRight,
   };
 
   @Override
   public void robotInit() {
-
-    SendableRegistry.addChild(m_robotDrive, frontLeft);
-    SendableRegistry.addChild(m_robotDrive, rearLeft);
-    SendableRegistry.addChild(m_robotDrive, frontRight);
-    SendableRegistry.addChild(m_robotDrive, rearRight);
-
+    // initialize the spark max/motors
     for (CANSparkMax motor : motors) {
       motor.setIdleMode(CANSparkBase.IdleMode.kBrake);
       motor.restoreFactoryDefaults();
@@ -51,22 +52,40 @@ public class Robot extends TimedRobot {
       motor.burnFlash();
     }
 
+    // inverts the motors
     frontRight.setInverted(true);
     rearRight.setInverted(true);
 
-    m_robotDrive = new MecanumDrive(frontLeft::set, rearLeft::set, frontRight::set, rearRight::set);
+    // initialize the Mecanum Drive
+    Mecanum_Drive = new MecanumDrive(frontLeft::set, rearLeft::set, frontRight::set, rearRight::set);
   }
 
   @Override
   public void teleopPeriodic() {
-    m_robotDrive.driveCartesian(-controller.getLeftY(), controller.getLeftX(), controller.getRightX(), Rotation2d.fromDegrees(navX.getAngle()));
+    // drive with field centric
+    Mecanum_Drive.driveCartesian(-controller.getLeftY(), controller.getLeftX(), controller.getRightX() / 2, Rotation2d.fromDegrees(navX.getAngle()));
+    // navX reset
     if (controller.y().getAsBoolean() == Boolean.TRUE) {
       navX.reset();
     }
+    // fan on while right Trigger is held down
     if (controller.rightTrigger().getAsBoolean() == Boolean.TRUE) {
       fan.set(Value.kOn);
-    } else {
+    }
+    // fan off while right Trigger is not held down
+    else {
       fan.set(Value.kOff);
     }
+    // funny coasting!
+    // if (controller.povUp().getAsBoolean() == Boolean.TRUE) {
+    // for (CANSparkMax motor : motors) {
+    // motor.setIdleMode(CANSparkBase.IdleMode.kBrake);
+    // }
+    // }
+    // if (controller.povDown().getAsBoolean() == Boolean.TRUE) {
+    // for (CANSparkMax motor : motors) {
+    // motor.setIdleMode(CANSparkBase.IdleMode.kCoast);
+    // }
+    // }
   }
 }
